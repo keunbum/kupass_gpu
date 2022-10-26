@@ -28,7 +28,7 @@ def create_app():
     from . import models
 
     # blueprint
-    from .apis import main_apis
+    from kupass_app.apis import main_apis
     app.register_blueprint(main_apis.bp)
 
     return app

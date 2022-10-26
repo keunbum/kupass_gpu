@@ -1,4 +1,5 @@
 from kupass_app import db
+from sqlalchemy.dialects.mysql import LONGTEXT
 
 article_keyword = db.Table(
     'article_keyword',
@@ -16,8 +17,8 @@ user_keyword = db.Table(
 class Article(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
-    content = db.Column(db.String(255), nullable=False)
-    summary = db.Column(db.String(255), nullable=True)
+    content = db.Column(LONGTEXT, nullable=False)
+    summary = db.Column(db.String(1023), nullable=True)
     category = db.Column(db.String(255), nullable=True)
     publisher = db.Column(db.String(255), nullable=True)
     source = db.Column(db.String(255), nullable=True)
@@ -27,7 +28,7 @@ class Article(db.Model):
 
 class Keyword(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
-    keyword = db.Column(db.String(255), nullable=False)
+    keyword = db.Column(db.String(255), nullable=False, index=True, unique=True)
 
 
 class User(db.Model):
