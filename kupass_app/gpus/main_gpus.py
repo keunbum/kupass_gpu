@@ -9,6 +9,8 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 
+from kupass_app import crawler
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 start = time.time()
@@ -18,14 +20,19 @@ def get_cur_time():
     return time.time() - start
 
 
-def read_data_frames():
+def change_day_format(day):
+    return day.replace("-", "")
+
+
+def read_data_frames(start_day, end_day, file_dir):
+    start_day = change_day_format(start_day)
+    end_day = change_day_format(end_day)
     # categories = ['politics', 'economy', 'society', 'culture', 'world', 'IT_science', 'opinion']
-    FILE_DIR = f'{BASE_DIR}\output'
     categories_kr = ['정치', '경제', '사회', '생활문화', '세계', 'IT과학', '오피니언']
     column_names = ['time', 'category', 'company', 'title', 'content', 'link']
     dfs = pd.DataFrame()
     for category_kr in categories_kr:
-        df = pd.read_csv(f'{FILE_DIR}\Article_{category_kr}_20221001_20221001.csv', names=column_names,
+        df = pd.read_csv(f'{file_dir}\Article_{category_kr}_{start_day}_{end_day}.csv', names=column_names,
                          encoding='CP949')
         dfs = pd.concat([dfs, df], ignore_index=True)
     return dfs
@@ -35,8 +42,6 @@ def get_article_list(dfs):
     from typing import List
     from textrankr import TextRank
     from konlpy.tag import Okt
-
-    os.environ['JAVA_HOME'] = r"C:\Users\woqkf\.jdks\openjdk-17.0.2\bin\server"
 
     class OktTokenizer:
         okt: Okt = Okt()
@@ -53,8 +58,6 @@ def get_article_list(dfs):
     content_max_len = 0
     summary_max_len = 0
     for i, article in dfs.iterrows():
-        if i == 100:
-            break
         create_date, category, publisher, title, content, source = [article[key] for key in article.keys()]
         summary = textrank.summarize(content, 3, verbose=False)
         summary = ''.join(summary)
@@ -90,9 +93,10 @@ class KeywordsProducer:
         self.model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
         self.top_n = 5
 
-    def get_keywords(self, article):
+    def get_keywords(self, content):
+        assert isinstance(content, str)
         # create_date, category, publisher, title, content, source = [article[key] for key in article.keys()]
-        tokenized_doc = self.okt.pos(article.content)
+        tokenized_doc = self.okt.pos(content)
         tokenized_nouns = ' '.join(
             [word[0] for word in tokenized_doc if
              word[1] == 'Noun' and not word[0] in self.stop_words and len(word[0]) > 1])
@@ -100,7 +104,7 @@ class KeywordsProducer:
         count = CountVectorizer(ngram_range=self.n_gram_range).fit([tokenized_nouns])
         candidates = count.get_feature_names_out()
 
-        doc_embedding = self.model.encode([article.content])
+        doc_embedding = self.model.encode([content])
         candidate_embeddings = self.model.encode(candidates)
 
         distances = cosine_similarity(doc_embedding, candidate_embeddings)
@@ -108,10 +112,16 @@ class KeywordsProducer:
         return keywords
 
 
-def insert_csv():
-    from kupass_app import db
+keyword_producer = KeywordsProducer()
 
-    dfs = read_data_frames()
+
+def insert_csv(start_day, end_day, categories, file_dir=f'{BASE_DIR}\output'):
+    from kupass_app import db
+    print(f'BASE_DIR={BASE_DIR}')
+    print(f'file_dr={file_dir}')
+    crawler.get_csv(start_day, end_day, categories)
+    return None
+    dfs = read_data_frames(start_day, end_day, file_dir)
     print(f'{get_cur_time()}: read data frames.')
     print(f'dfs size = {len(dfs)}')
 
@@ -119,10 +129,8 @@ def insert_csv():
     print(f'{get_cur_time()}: append articles.')
     print(f'article_list size = {len(article_list)}')
 
-    keyword_producer = KeywordsProducer()
-
     for i, article in enumerate(article_list):
-        keywords = keyword_producer.get_keywords(article)
+        keywords = keyword_producer.get_keywords(article.content)
         db.session.add(article)
         for keyword in keywords:
             _keyword = Keyword(keyword=keyword)
@@ -140,8 +148,10 @@ def insert_csv():
         if i == len(article_list) - 1:
             j = i // qq
             print(f'{get_cur_time()}: {j * qq} ~ {j * qq + i % qq}th articles has been inserted.')
+    before_commit = get_cur_time()
     db.session.commit()
-
+    after_commit = get_cur_time()
+    print(f'took {after_commit - before_commit} seconds for db.session.commit()')
     # try:
 
     # except exc.IntegrityError:

@@ -2,6 +2,7 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
+import os
 
 naming_convention = {
     "ix": 'ix_%(column_0_label)s',
@@ -30,5 +31,8 @@ def create_app():
     # blueprint
     from kupass_app.apis import main_apis
     app.register_blueprint(main_apis.bp)
+
+    # ENVIRON PATH
+    os.environ['JAVA_HOME'] = r"C:\Users\woqkf\.jdks\openjdk-17.0.2\bin\server"
 
     return app

@@ -1,5 +1,6 @@
 from flask import Blueprint, request, json
 from flask_restful import Resource, Api
+from datetime import datetime
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 api = Api(bp)
@@ -27,28 +28,51 @@ class Summary(Resource):
                     or len(title) + len(content) > max_len):
                 return None
             return title, content
+
         res = is_valid_request()
         if not res:
             return {'message': "bad request"}, 400
         title, content = res
-        return {'summary': title + ": " + content}, 201
+        from kupass_app.gpus.main_gpus import keyword_producer
+        summary = keyword_producer.get_keywords(content)
+        return {'summary': summary}, 201
 
 class Crawler(Resource):
     # 무슨 무슨 날짜에 특정 카테고리에 해당하는 기사들 크롤링 해줘.
     # 날짜 특정하지 않을 경우 에러. 잘못된 날짜 형식 에러.
     # 카테고리 지정하지 않으면 전체 카테고리 지정.
+    categories_en = ['politics', 'economy', 'society', 'living_culture', 'world', 'IT_science', 'opinion']
+
     def post(self):
-        def is_valid_request():
+
+        def is_valid_day_format(day):
+            # hmm... ;;
             return True
-            """
+        def is_valid_request():
             if request.headers.get('Content-Type') != 'application/json':
                 return None
-            """
+            try:
+                data = request.get_json()['data']
+                now = datetime.now().strftime("%Y-%m-%d")
+                start_day = data.get('start_day', now)
+                end_day = data.get('end_day', now)
+                categories = data.get('categories', self.categories_en)
+            except KeyError:
+                return None
+            except Exception:
+                return None
+            if (not is_valid_day_format(start_day)
+                    or not is_valid_day_format(end_day)
+                    or not all(e in self.categories_en for e in categories)):
+                return None
+            return start_day, end_day, categories
+
         res = is_valid_request()
         if not res:
             return {'message': "bad request"}, 400
+        start_day, end_day, categories = res
         from kupass_app.gpus.main_gpus import insert_csv
-        insert_csv()
+        insert_csv(start_day, end_day, categories)
         return {'message': "success"}, 201
 
 

@@ -1,13 +1,21 @@
 from korea_news_crawler.articlecrawler import ArticleCrawler
+import time
 
-def crawl(*categories, start_day, end_day):
-    Crawler = ArticleCrawler()
-    Crawler.set_category(categories)
-    Crawler.set_date_range(start_day, end_day)
-    Crawler.start()
+crawler = ArticleCrawler()
 
-def main():
-    None
+
+def crawl(start_day, end_day, *categories):
+    crawler.set_category(*categories)
+    crawler.set_date_range(start_day, end_day)
+    crawler.start()
+
+
+def get_csv(start_day, end_day, categories):
+    start_time = time.time()
+    crawl(start_day, end_day, *categories)
+    print(
+        f'It took {time.time() - start_time} seconds to crawl. from {start_day} to {end_day} for categories: {categories}')
+
 
 if __name__ == "__main__":
-    main()
+    get_csv()
