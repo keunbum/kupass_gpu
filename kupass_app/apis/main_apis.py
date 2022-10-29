@@ -38,7 +38,6 @@ class Summary(Resource):
         return {'summary': summary}, 201
 
 class Crawler(Resource):
-    # 무슨 무슨 날짜에 특정 카테고리에 해당하는 기사들 크롤링 해줘.
     # 날짜 특정하지 않을 경우 에러. 잘못된 날짜 형식 에러.
     # 카테고리 지정하지 않으면 전체 카테고리 지정.
     categories_en = ['politics', 'economy', 'society', 'living_culture', 'world', 'IT_science', 'opinion']
@@ -54,9 +53,12 @@ class Crawler(Resource):
             try:
                 data = request.get_json()['data']
                 now = datetime.now().strftime("%Y-%m-%d")
+                #now = '2022-10-01'
                 start_day = data.get('start_day', now)
                 end_day = data.get('end_day', now)
                 categories = data.get('categories', self.categories_en)
+                print(f'start_day ~ end_day: {start_day} ~ {end_day}')
+                print(f'categories: {categories}')
             except KeyError:
                 return None
             except Exception:

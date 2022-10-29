@@ -58,7 +58,7 @@ def get_article_list(dfs):
     content_max_len = 0
     summary_max_len = 0
     for i, article in dfs.iterrows():
-        create_date, category, publisher, title, content, source = [article[key] for key in article.keys()]
+        create_date, category, publisher, title, content, source = [article[key].strip() for key in article.keys()]
         summary = textrank.summarize(content, 3, verbose=False)
         summary = ''.join(summary)
         title_max_len = max(title_max_len, len(title))
@@ -71,10 +71,10 @@ def get_article_list(dfs):
         qq = 10
         if i > 0 and i % qq == 0:
             j = i // qq - 1
-            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + (qq - 1)}th articles has been appended.')
+            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + (qq - 1)}th articles have been appended.')
         if i == len(dfs) - 1:
             j = i // qq
-            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + i % qq}th articles has been appended.')
+            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + i % qq}th articles have been appended.')
     print(f'title_max_len = {title_max_len}')
     print(f'content_max_len = {content_max_len}')
     print(f'summary_max_len = {summary_max_len}')
@@ -117,10 +117,9 @@ keyword_producer = KeywordsProducer()
 
 def insert_csv(start_day, end_day, categories, file_dir=f'{BASE_DIR}\output'):
     from kupass_app import db
-    print(f'BASE_DIR={BASE_DIR}')
-    print(f'file_dr={file_dir}')
+    print(f'crawl starts')
     crawler.get_csv(start_day, end_day, categories)
-    return None
+    print(f'crawl ends')
     dfs = read_data_frames(start_day, end_day, file_dir)
     print(f'{get_cur_time()}: read data frames.')
     print(f'dfs size = {len(dfs)}')
@@ -144,10 +143,10 @@ def insert_csv(start_day, end_day, categories, file_dir=f'{BASE_DIR}\output'):
         qq = 10
         if i > 0 and i % qq == 0:
             j = i // qq - 1
-            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + (qq - 1)}th articles has been inserted.')
+            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + (qq - 1)}th articles have been inserted.')
         if i == len(article_list) - 1:
             j = i // qq
-            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + i % qq}th articles has been inserted.')
+            print(f'{get_cur_time()}: {j * qq} ~ {j * qq + i % qq}th articles have been inserted.')
     before_commit = get_cur_time()
     db.session.commit()
     after_commit = get_cur_time()
