@@ -1,6 +1,10 @@
 from flask import Blueprint, request, json
 from flask_restful import Resource, Api
+
 from datetime import datetime
+
+from kupass_app.models import Article
+from kupass_app import crawler
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 api = Api(bp)
@@ -73,10 +77,25 @@ class Crawler(Resource):
         if not res:
             return {'message': "bad request"}, 400
         start_day, end_day, categories = res
-        from kupass_app.gpus.main_gpus import insert_csv
-        insert_csv(start_day, end_day, categories)
+        print(f'crawl starts')
+        crawler.get_csv(start_day, end_day, categories)
         return {'message': "success"}, 201
+
+class Extracter(Resource):
+
+    def post(self):
+        def is_valid_request(self):
+            if request.headers.get('Content-Type') != 'application/json':
+                return None
+            return True
+
+        res = is_valid_request()
+        if not res:
+            return {'message': "bad request"}, 400
+        return {'message': "success"}, 201
+
 
 
 api.add_resource(Summary, '/summary')
 api.add_resource(Crawler, '/crawler')
+api.add_resource(Extracter, '/extract')
