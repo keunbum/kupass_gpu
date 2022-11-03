@@ -225,7 +225,7 @@ class ArticleCrawler(object):
                         print(tag_content[0]['content'], add, type(add), sep=', ')
                         continue
                     publisher += add
-                    print_cur_state(f'publisher: {publisher}')
+#                    print_cur_state(f'publisher: {publisher}')
 
 
                     # 기사 시간대 가져옴

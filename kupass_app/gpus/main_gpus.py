@@ -133,14 +133,13 @@ def get_last_create_date(category):
     #category = en_to_kr[category]
     print_cur_state(f'category_kr: {category}')
     from datetime import datetime
-    last_create_date = datetime.now()
-#    print_cur_state(last_create_date)
+    last_create_date = datetime.now().replace(minute=0, second=0, microsecond=0)
 #    assert isinstance(last_create_date, datetime)
 #    print(f'before last_create_date = {last_create_date}')
     try:
         sub_query = Article.query.filter(Article.category == category).order_by(Article.create_date.desc()).limit(1)
 #        print_cur_state(f'sub_query = {sub_query}')
-        if sub_query:
+        if sub_query.count() > 0:
             last_create_date = sub_query[0].create_date
             print_cur_state(f'late_create_date: {last_create_date}')
 #            assert isinstance(last_create_date, datetime)
@@ -150,7 +149,6 @@ def get_last_create_date(category):
         print_cur_state('in get_last_create_date(): ', end='')
         print(e)
 #    print(f'after last_create_date = {last_create_date}')
-#    last_create_date = datetime.strptime("%Y-%m-%d %H:%M:%S")
     return last_create_date
 
 
