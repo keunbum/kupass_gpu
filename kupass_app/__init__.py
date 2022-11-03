@@ -27,7 +27,6 @@ def create_app():
     else:
         migrate.init_app(app, db)
     from . import models
-
     # blueprint
     from kupass_app.apis import main_apis
     app.register_blueprint(main_apis.bp)

@@ -20,7 +20,7 @@ class Article(db.Model):
     article_id = db.Column(db.BigInteger, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(LONGTEXT, nullable=False)
-    summary = db.Column(db.String(1023), nullable=True)
+    summary = db.Column(LONGTEXT, nullable=True)
     category = db.Column(db.String(255), nullable=True)
     publisher = db.Column(db.String(255), nullable=True)
     source = db.Column(db.String(255), nullable=True)

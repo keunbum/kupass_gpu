@@ -1,4 +1,5 @@
 # coding: utf-8
+import sys
 import os
 import pandas as pd
 import time
@@ -9,11 +10,14 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 
+from kupass_app import db
+
 #BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 start = time.time()
 
 os.environ['JAVA_HOME'] = r"C:\Users\woqkf\.jdks\openjdk-17.0.2\bin\server"
+
 
 def get_cur_time():
     return time.time() - start
@@ -23,8 +27,12 @@ def change_day_format(day):
     return day.replace("-", "")
 
 
-def print_cur_state(suffix):
-    print(f'{get_cur_time():.3f} seconds: ' + suffix)
+def eprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
+
+def print_cur_state(*args, **kwargs):
+    print(f'{get_cur_time():.3f} seconds:', *args, **kwargs)
 
 
 def print_ith_result(qq, i, list_size, suffix=''):
@@ -53,10 +61,19 @@ def read_data_frames(start_day, end_day, file_dir, categories=['politics', 'econ
 
 ARTICLE_LIST_SIZE = 30
 
-def get_article_list(dfs):
-    from typing import List
-    from textrankr import TextRank
-    from konlpy.tag import Okt
+from typing import List
+from textrankr import TextRank
+from konlpy.tag import Okt
+
+
+class TextSummary:
+    def __init__(self):
+        self.tokenizer = self.OktTokenizer()
+        self.textrank = TextRank(self.tokenizer)
+    def get_article_summary(self, content):
+        summary = self.textrank.summarize(content, 3, verbose=False)
+        summary = ''.join(summary)
+        return summary
 
     class OktTokenizer:
         okt: Okt = Okt()
@@ -65,32 +82,8 @@ def get_article_list(dfs):
             tokens: List[str] = self.okt.phrases(text)
             return tokens
 
-    mytokenizer: OktTokenizer = OktTokenizer()
-    textrank: TextRank = TextRank(mytokenizer)
 
-    article_list = []
-#    title_max_len = 0
-#    content_max_len = 0
-#    summary_max_len = 0
-    for i, article in dfs.iterrows():
-        if i == ARTICLE_LIST_SIZE:
-            break
-        create_date, category, publisher, title, content, source = [article[key].strip() for key in article.keys()]
-        summary = textrank.summarize(content, 3, verbose=False)
-        summary = ''.join(summary)
-#        title_max_len = max(title_max_len, len(title))
-#        content_max_len = max(content_max_len, len(content))
-#        summary_max_len = max(summary_max_len, len(summary))
-        #        print(title, content, summary, category, publisher, source, create_date, sep='\n')
-        article_list.append(
-            Article(title=title, content=content, summary=summary, category=category, publisher=publisher,
-                    source=source, create_date=create_date))
-#        print_ith_result(10, i, len(dfs), 'articles have been appended.')
-        print_ith_result(10, i, ARTICLE_LIST_SIZE, 'th articles: summary was extracted.')
-#    print(f'title_max_len = {title_max_len}')
-#    print(f'content_max_len = {content_max_len}')
-#    print(f'summary_max_len = {summary_max_len}')
-    return article_list
+text_summary = TextSummary()
 
 
 class KeywordsProducer:
@@ -124,51 +117,55 @@ class KeywordsProducer:
         return keywords
 
 
+def get_last_create_date(category):
+    print_cur_state(f'category: {category}')
+    en_to_kr = {
+        'politics' : '정치',
+        'economy' : '경제',
+        'society' : '사회',
+        'living_culture' : '생활문화',
+        'world' : '세계',
+        'IT_science' : 'IT과학',
+        'opinion' : '오피니언',
+    }
+    category = en_to_kr[category]
+    print_cur_state(f'category_kr: {category}')
+    from datetime import datetime
+    last_create_date = datetime.now()
+#    print_cur_state(last_create_date)
+#    assert isinstance(last_create_date, datetime)
+#    print(f'before last_create_date = {last_create_date}')
+    try:
+        sub_query = Article.query.filter(Article.category == category).order_by(Article.create_date.desc()).limit(1)
+#        print_cur_state(f'sub_query = {sub_query}')
+        if sub_query:
+            last_create_date = sub_query[0].create_date
+#            assert isinstance(last_create_date, datetime)
+        else:
+            print_cur_state('empty subquery')
+    except Exception as e:
+        print_cur_state('in get_last_create_date(): ', end='')
+        print(e)
+#    print(f'after last_create_date = {last_create_date}')
+#    last_create_date = datetime.strptime("%Y-%m-%d %H:%M:%S")
+    return last_create_date
+
+
 keyword_producer = KeywordsProducer()
 
+def insert_one_article(article):
+    keywords = keyword_producer.get_keywords(article.content)
+    db.session.add(article)
+    for keyword in keywords:
+        _keyword = Keyword(keyword=keyword)
+        kw = Keyword.query.filter(Keyword.keyword == keyword).all()
+        if kw:
+            article.keyword.append(kw[0])
+        else:
+            db.session.add(_keyword)
+            article.keyword.append(_keyword)
 
-def insert_csv(start_day, end_day, categories, file_dir=f'{BASE_DIR}\output'):
-    print_cur_state(f'file_dir={file_dir}')
-    from kupass_app import db
-    dfs = read_data_frames(start_day, end_day, file_dir)
-    print_cur_state(f'reads all data frames.')
-    print_cur_state(f'data frames(articles) size = {len(dfs)}')
-
-    print_cur_state(f'Limit the number of extracted articles to {ARTICLE_LIST_SIZE}')
-
-    article_list = get_article_list(dfs)
-    print_cur_state(f'appends all articles.')
-    print_cur_state(f'article_list size = {len(article_list)}')
-
-    for i, article in enumerate(article_list):
-        if i == ARTICLE_LIST_SIZE:
-            break
-        keywords = keyword_producer.get_keywords(article.content)
-        db.session.add(article)
-        for keyword in keywords:
-            _keyword = Keyword(keyword=keyword)
-            kw = Keyword.query.filter(Keyword.keyword == keyword).all()
-            if kw:
-                article.keyword.append(kw[0])
-            else:
-                db.session.add(_keyword)
-                article.keyword.append(_keyword)
-#        print_ith_result(10, i, len(article_list), 'th articles have been inserted.')
-        print_ith_result(10, i, ARTICLE_LIST_SIZE, 'th articles: keywords were extracted.')
-    before_commit = get_cur_time()
-    db.session.commit()
-    after_commit = get_cur_time()
-    print_cur_state(f'took {(after_commit - before_commit):.3f} seconds for db.session.commit()')
-    # try:
-
-    # except exc.IntegrityError:
-    #    print("ERROR!!!")
-    print_cur_state(f'all articles committed')
-
-
-def main():
-    None
 
 
 if __name__ == '__main__':
-    main()
+    None

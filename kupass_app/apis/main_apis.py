@@ -3,7 +3,6 @@ from flask_restful import Resource, Api
 
 from datetime import datetime
 
-from kupass_app.models import Article
 from kupass_app import crawler
 
 bp = Blueprint('api', __name__, url_prefix='/api')
@@ -77,8 +76,8 @@ class Crawler(Resource):
         if not res:
             return {'message': "bad request"}, 400
         start_day, end_day, categories = res
-        print(f'crawl starts')
-        crawler.get_csv(start_day, end_day, categories)
+        from kupass_app import crawler
+        crawler.start_crawl(start_day, end_day, categories)
         return {'message': "success"}, 201
 
 class Extracter(Resource):
