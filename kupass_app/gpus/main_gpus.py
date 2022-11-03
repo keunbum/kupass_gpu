@@ -119,6 +119,7 @@ class KeywordsProducer:
 
 def get_last_create_date(category):
     print_cur_state(f'category: {category}')
+    '''
     en_to_kr = {
         'politics' : '정치',
         'economy' : '경제',
@@ -128,7 +129,8 @@ def get_last_create_date(category):
         'IT_science' : 'IT과학',
         'opinion' : '오피니언',
     }
-    category = en_to_kr[category]
+    '''
+    #category = en_to_kr[category]
     print_cur_state(f'category_kr: {category}')
     from datetime import datetime
     last_create_date = datetime.now()
@@ -140,6 +142,7 @@ def get_last_create_date(category):
 #        print_cur_state(f'sub_query = {sub_query}')
         if sub_query:
             last_create_date = sub_query[0].create_date
+            print_cur_state(f'late_create_date: {last_create_date}')
 #            assert isinstance(last_create_date, datetime)
         else:
             print_cur_state('empty subquery')

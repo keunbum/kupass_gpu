@@ -1,16 +1,12 @@
 # -*- coding: utf-8, euc-kr -*-
 
-# import os
 import platform
 import calendar
 import requests
-# import re
 from time import sleep
 from bs4 import BeautifulSoup
-# from multiprocessing import Process
 from kupass_app.korea_news_crawler.exceptions import *
 from kupass_app.korea_news_crawler.articleparser import ArticleParser
-# from kupass_app.korea_news_crawler.writer import Writer
 
 from kupass_app.models import Article
 from kupass_app.gpus.main_gpus import print_cur_state
@@ -147,10 +143,6 @@ class ArticleCrawler(object):
     def crawling(self, category):
         print_cur_state(f'last_create_date: {self.last_create_dates[category]}')
 
-        # Multi Process PID
-        #        print_cur_state(category_name + " PID: " + str(os.getpid()))
-
-        #        writer = Writer(category='Article', article_category=category_name, date=self.date)
         # 기사 url 형식
         url_format = f'https://news.naver.com/main/list.nhn?mode=LSD&mid=sec&sid1={self.categories.get(category)}&date='
         # start_year년 start_month월 start_day일 부터 ~ end_year년 end_month월 end_day일까지 기사를 수집합니다.
@@ -159,7 +151,6 @@ class ArticleCrawler(object):
 
         print_cur_state(f'{category} is collecting ...')
         finished = False
-        #        article_list = []
         for url in target_urls:
             print_cur_state(f'url = {url}')
             request = self.get_url_data(url)
@@ -177,14 +168,14 @@ class ArticleCrawler(object):
                 post_urls.append(line.a.get('href'))
             del temp_post
 
-            #            for content_url in post_urls[:1]:  # 기사 url
-            #                print_cur_state(content_url)
-            #                print_cur_state(f'urls count = {len(post_urls)}')
+            # for content_url in post_urls[:1]:  # 기사 url
+            # print_cur_state(content_url)
+            # print_cur_state(f'urls count = {len(post_urls)}')
             for source in post_urls:
                 print_cur_state(f'content_url = {source}')
                 # 크롤링 대기 시간
-#                sleep(0.01)
-                #                sleep(0.02)
+                # sleep(0.01)
+                # sleep(0.02)
 
                 # 기사 HTML 가져옴
                 request_content = self.get_url_data(source)
@@ -234,6 +225,7 @@ class ArticleCrawler(object):
                         print(tag_content[0]['content'], add, type(add), sep=', ')
                         continue
                     publisher += add
+                    print_cur_state(f'publisher: {publisher}')
 
 
                     # 기사 시간대 가져옴
@@ -252,13 +244,11 @@ class ArticleCrawler(object):
                         break
 
                     # CSV 작성
-                    # writer.write_row([create_date, category_name, text_company, text_headline, text_sentence, content_url])
                     # Article object insert
                     article = Article(title=title, content=content, summary=summary, category=category, publisher=publisher,
                                       source=source, create_date=create_date)
                     from kupass_app.gpus.main_gpus import insert_one_article
                     insert_one_article(article)
-                    # article_list.append(article)
 
                     del create_date
                     del publisher, content, title
@@ -274,16 +264,12 @@ class ArticleCrawler(object):
                     pass
             if finished:
                 break
-        #        writer.close()
         from kupass_app import db
         db.session.commit()
 
     def start(self):
         # 크롤링 시작
         for category in self.selected_categories:
-            #            proc = Process(target=self.crawling, args=(category_name,))
-            #            proc.start()
-            #            proc.join()
             print_cur_state(f'{category} has been started.')
             from kupass_app.gpus.main_gpus import get_last_create_date
             self.set_last_create_date(category, get_last_create_date(category))
