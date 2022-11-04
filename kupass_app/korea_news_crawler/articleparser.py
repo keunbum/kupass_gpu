@@ -5,7 +5,8 @@ from bs4 import BeautifulSoup
 
 class ArticleParser(object):
     special_symbol = re.compile('[\{\}\[\]\/?,;:|\)*~`!^\-_+<>@\#$&▲▶◆◀■【】\\\=\(\'\"]')
-    content_pattern = re.compile('본문 내용|TV플레이어| 동영상 뉴스|flash 오류를 우회하기 위한 함수 추가function  flash removeCallback|tt|앵커 멘트|xa0')
+    content_pattern = re.compile(
+        '본문 내용|TV플레이어| 동영상 뉴스|flash 오류를 우회하기 위한 함수 추가function  flash removeCallback|tt|앵커 멘트|xa0')
 
     @classmethod
     def clear_content(cls, text):
@@ -35,7 +36,7 @@ class ArticleParser(object):
         # 당일 기사 목록 전체를 알아냄
         try:
             # Added headers for avoid anti-crawling
-            request_content = requests.get(url, timeout=10, headers={'User-Agent':'Mozilla/5.0'})
+            request_content = requests.get(url, timeout=10, headers={'User-Agent': 'Mozilla/5.0'})
             document_content = BeautifulSoup(request_content.content, 'html.parser')
             headline_tag = document_content.find('div', {'class': 'paging'}).find('strong')
             regex = re.compile(r'<strong>(?P<num>\d+)')

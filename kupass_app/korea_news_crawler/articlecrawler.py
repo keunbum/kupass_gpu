@@ -5,12 +5,14 @@ import calendar
 import requests
 from time import sleep
 from bs4 import BeautifulSoup
+from datetime import datetime
+
 from kupass_app.korea_news_crawler.exceptions import *
 from kupass_app.korea_news_crawler.articleparser import ArticleParser
 
 from kupass_app.models import Article
-from kupass_app.gpus.main_gpus import print_cur_state
-from datetime import datetime
+from kupass_app.gpus.main_gpus import print_cur_state, text_summary, insert_one_article, get_last_create_date
+from kupass_app import db
 
 
 class ArticleCrawler(object):
@@ -23,6 +25,7 @@ class ArticleCrawler(object):
         self.user_operating_system = str(platform.system())
         self.last_create_dates = {'politics': None, 'economy': None, 'society': None, 'living_culture': None,
                                   'world': None, 'IT_science': None, 'opinion': None}
+        print_cur_state(f'ArticleCrawler() has been created.')
 
     def set_last_create_date(self, category, last_create_date: datetime):
         self.last_create_dates[category] = last_create_date
@@ -152,7 +155,7 @@ class ArticleCrawler(object):
         print_cur_state(f'{category} is collecting ...')
         finished = False
         for url in target_urls:
-            print_cur_state(f'url = {url}')
+            #            print_cur_state(f'url = {url}')
             request = self.get_url_data(url)
             document = BeautifulSoup(request.content, 'html.parser')
 
@@ -172,7 +175,7 @@ class ArticleCrawler(object):
             # print_cur_state(content_url)
             # print_cur_state(f'urls count = {len(post_urls)}')
             for source in post_urls:
-                print_cur_state(f'content_url = {source}')
+                #                print_cur_state(f'content_url = {source}')
                 # 크롤링 대기 시간
                 # sleep(0.01)
                 # sleep(0.02)
@@ -188,30 +191,34 @@ class ArticleCrawler(object):
                 try:
                     # 기사 제목 가져옴
                     tag_headline = document_content.find_all('h2', {'class': 'media_end_head_headline'})
+                    #                    print_cur_state(f"tag_headline's type: {type(tag_headline)}, len: {len(tag_headline)}")
+                    if len(tag_headline) < 1:
+                        continue
                     # 뉴스 기사 제목 초기화
                     title = ''
                     add = ArticleParser.clear_headline(str(tag_headline[0].find_all(text=True)))
                     # 공백일 경우 기사 제외 처리
                     if not isinstance(add, str) or not add:
-                        print_cur_state(f'title is None', end=' ')
-                        print(tag_headline, add, type(add), sep=', ')
+                        # print_cur_state(f'title is None', end=' ')
+                        # print(tag_headline, add, type(add), sep=', ')
                         continue
                     title += add
                     # <div class="go_trans _article_content" id="dic_area">
 
                     # 기사 본문 가져옴
                     tag_content = document_content.find_all('div', {'id': 'dic_area'})
+                    if len(tag_content) < 1:
+                        continue
                     # 뉴스 기사 본문 초기화
                     content = ''
                     add = ArticleParser.clear_content(str(tag_content[0].find_all(text=True)))
                     # 공백일 경우 기사 제외 처리
                     if not isinstance(add, str) or not add:
-                        print_cur_state(f'content is None', end=' ')
-                        print(tag_content, add, type(add), sep=', ')
+                        #                        print_cur_state(f'content is None', end=' ')
+                        #                        print(tag_content, add, type(add), sep=', ')
                         continue
                     content += add
                     # 기사 요약함
-                    from kupass_app.gpus.main_gpus import text_summary
                     summary = text_summary.get_article_summary(content)
 
                     # 기사 언론사 가져옴
@@ -221,23 +228,23 @@ class ArticleCrawler(object):
                     add = tag_content[0]['content'].split("|")[0]
                     # 공백일 경우 기사 제외 처리
                     if not isinstance(add, str) or not add:
-                        print_cur_state(f'publisher is None', end=' ')
-                        print(tag_content[0]['content'], add, type(add), sep=', ')
+                        #                        print_cur_state(f'publisher is None', end=' ')
+                        #                        print(tag_content[0]['content'], add, type(add), sep=', ')
                         continue
                     publisher += add
-#                    print_cur_state(f'publisher: {publisher}')
-
+                    #                    print_cur_state(f'publisher: {publisher}')
 
                     # 기사 시간대 가져옴
-                    create_date = document_content.find_all('span', {'class': "media_end_head_info_datestamp_time _ARTICLE_DATE_TIME"})[0]['data-date-time']
+                    create_date = document_content.find_all('span', {
+                        'class': "media_end_head_info_datestamp_time _ARTICLE_DATE_TIME"})[0]['data-date-time']
                     print_cur_state(f'create_date: {create_date}')
                     current_time = datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S")
-#                    print_cur_state(f'last: {self.last_create_dates[category]} --> {self.last_create_dates[category]}')
-#                    print_cur_state(f'cur: {create_date} --> {cur_t}')
+                    #                    print_cur_state(f'last: {self.last_create_dates[category]} --> {self.last_create_dates[category]}')
+                    #                    print_cur_state(f'cur: {create_date} --> {cur_t}')
 
-#                    print(current_time, self.last_create_dates[category])
-#                    print(type(current_time), type(self.last_create_dates[category]))
-#                    assert isinstance(current_time, datetime) and isinstance(self.last_create_dates[category], datetime)
+                    #                    print(current_time, self.last_create_dates[category])
+                    #                    print(type(current_time), type(self.last_create_dates[category]))
+                    #                    assert isinstance(current_time, datetime) and isinstance(self.last_create_dates[category], datetime)
 
                     if self.last_create_dates[category] >= current_time:
                         finished = True
@@ -245,9 +252,9 @@ class ArticleCrawler(object):
 
                     # CSV 작성
                     # Article object insert
-                    article = Article(title=title, content=content, summary=summary, category=category, publisher=publisher,
+                    article = Article(title=title, content=content, summary=summary, category=category,
+                                      publisher=publisher,
                                       source=source, create_date=create_date)
-                    from kupass_app.gpus.main_gpus import insert_one_article
                     insert_one_article(article)
 
                     del create_date
@@ -258,20 +265,19 @@ class ArticleCrawler(object):
 
                 # UnicodeEncodeError
                 except Exception as ex:
-                    print_cur_state(f'Exception as ex:', end=' ')
+                    print_cur_state('articlecrawler.crawling(): ', end='')
                     print(ex)
                     del request_content, document_content
+                    assert False
                     pass
             if finished:
                 break
-        from kupass_app import db
         db.session.commit()
 
     def start(self):
         # 크롤링 시작
         for category in self.selected_categories:
             print_cur_state(f'{category} has been started.')
-            from kupass_app.gpus.main_gpus import get_last_create_date
             self.set_last_create_date(category, get_last_create_date(category))
             self.crawling(category)
             print_cur_state(f'{category} has been finished.')

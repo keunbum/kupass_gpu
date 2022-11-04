@@ -5,14 +5,18 @@ import pandas as pd
 import time
 
 from kupass_app.models import Article, Keyword
-from konlpy.tag import Okt
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 
-from kupass_app import db
+from typing import List
+from textrankr import TextRank
+from konlpy.tag import Okt
 
-#BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from kupass_app import db
+from datetime import datetime
+
+# BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 start = time.time()
 
@@ -32,7 +36,8 @@ def eprint(*args, **kwargs):
 
 
 def print_cur_state(*args, **kwargs):
-    print(f'{get_cur_time():.3f} seconds:', *args, **kwargs)
+    #    print(f'{get_cur_time():.3f} seconds:', *args, **kwargs)
+    print(f'', *args, **kwargs)
 
 
 def print_ith_result(qq, i, list_size, suffix=''):
@@ -44,7 +49,8 @@ def print_ith_result(qq, i, list_size, suffix=''):
         print_cur_state(f'{j * qq} ~ {j * qq + i % qq}' + suffix)
 
 
-def read_data_frames(start_day, end_day, file_dir, categories=['politics', 'economy', 'society', 'living_culture', 'world', 'IT_science', 'opinion']):
+def read_data_frames(start_day, end_day, file_dir,
+                     categories=['politics', 'economy', 'society', 'living_culture', 'world', 'IT_science', 'opinion']):
     start_day = change_day_format(start_day)
     end_day = change_day_format(end_day)
     categories_kr = ['정치', '경제', '사회', '생활문화', '세계', 'IT과학', '오피니언']
@@ -59,17 +65,16 @@ def read_data_frames(start_day, end_day, file_dir, categories=['politics', 'econ
         dfs = pd.concat([dfs, df], ignore_index=True)
     return dfs
 
-ARTICLE_LIST_SIZE = 30
 
-from typing import List
-from textrankr import TextRank
-from konlpy.tag import Okt
+ARTICLE_LIST_SIZE = 30
 
 
 class TextSummary:
     def __init__(self):
         self.tokenizer = self.OktTokenizer()
         self.textrank = TextRank(self.tokenizer)
+        print_cur_state(f'TextSummary() has been created.')
+
     def get_article_summary(self, content):
         summary = self.textrank.summarize(content, 3, verbose=False)
         summary = ''.join(summary)
@@ -97,6 +102,7 @@ class KeywordsProducer:
         self.n_gram_range = (1, 1)
         self.model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
         self.top_n = 5
+        print_cur_state(f'KeywordsProducer() has been created.')
 
     def get_keywords(self, content):
         assert isinstance(content, str)
@@ -130,29 +136,29 @@ def get_last_create_date(category):
         'opinion' : '오피니언',
     }
     '''
-    #category = en_to_kr[category]
+    # category = en_to_kr[category]
     print_cur_state(f'category_kr: {category}')
-    from datetime import datetime
     last_create_date = datetime.now().replace(minute=0, second=0, microsecond=0)
-#    assert isinstance(last_create_date, datetime)
-#    print(f'before last_create_date = {last_create_date}')
+    #    assert isinstance(last_create_date, datetime)
+    #    print(f'before last_create_date = {last_create_date}')
     try:
         sub_query = Article.query.filter(Article.category == category).order_by(Article.create_date.desc()).limit(1)
-#        print_cur_state(f'sub_query = {sub_query}')
+        #        print_cur_state(f'sub_query = {sub_query}')
         if sub_query.count() > 0:
             last_create_date = sub_query[0].create_date
-            print_cur_state(f'late_create_date: {last_create_date}')
-#            assert isinstance(last_create_date, datetime)
+        #            print_cur_state(f'last_create_date: {last_create_date}')
+        #            assert isinstance(last_create_date, datetime)
         else:
             print_cur_state('empty subquery')
     except Exception as e:
-        print_cur_state('in get_last_create_date(): ', end='')
+        print_cur_state('main_gpus.get_last_create_date(): ', end='')
         print(e)
-#    print(f'after last_create_date = {last_create_date}')
+    #    print(f'after last_create_date = {last_create_date}')
     return last_create_date
 
 
 keyword_producer = KeywordsProducer()
+
 
 def insert_one_article(article):
     keywords = keyword_producer.get_keywords(article.content)
@@ -165,7 +171,6 @@ def insert_one_article(article):
         else:
             db.session.add(_keyword)
             article.keyword.append(_keyword)
-
 
 
 if __name__ == '__main__':

@@ -32,6 +32,7 @@ def create_app():
     app.register_blueprint(main_apis.bp)
 
     # ENVIRON PATH
-    os.environ['JAVA_HOME'] = r"C:\Users\woqkf\.jdks\openjdk-17.0.2\bin\server"
-
+#    os.environ['JAVA_HOME'] = r"C:\Users\woqkf\.jdks\openjdk-17.0.2\bin\server"
+    print(f'create_app() has been finished.')
+    print(f'PID: {os.getpid()}')
     return app

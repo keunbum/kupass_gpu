@@ -39,4 +39,3 @@ class User(db.Model):
     activated = db.Column(db.Boolean, nullable=True)
     nickname = db.Column(db.String(255), nullable=True)
     keyword = db.relationship('Keyword', secondary=interesting_keyword, backref=db.backref('user_keyword_set'))
-

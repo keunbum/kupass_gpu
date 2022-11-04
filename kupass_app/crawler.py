@@ -13,8 +13,8 @@ def crawl(start_day, end_day, *categories):
 def start_crawl(start_day, end_day, categories):
     start_time = time.time()
     crawl(start_day, end_day, *categories)
-    #print(f'It took {time.time() - start_time} seconds to crawl. from {start_day} to {end_day} for categories: {categories}')
+    # print(f'It took {time.time() - start_time} seconds to crawl. from {start_day} to {end_day} for categories: {categories}')
 
 
 if __name__ == "__main__":
-    start_crawl()
+    None
