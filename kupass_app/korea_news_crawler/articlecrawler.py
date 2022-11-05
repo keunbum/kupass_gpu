@@ -175,7 +175,7 @@ class ArticleCrawler(object):
             # print_cur_state(content_url)
             # print_cur_state(f'urls count = {len(post_urls)}')
             for source in post_urls:
-                #                print_cur_state(f'content_url = {source}')
+                print_cur_state(f'content_url = {source}')
                 # 크롤링 대기 시간
                 # sleep(0.01)
                 # sleep(0.02)
@@ -232,6 +232,7 @@ class ArticleCrawler(object):
                         #                        print(tag_content[0]['content'], add, type(add), sep=', ')
                         continue
                     publisher += add
+                    publisher = publisher.strip()
                     #                    print_cur_state(f'publisher: {publisher}')
 
                     # 기사 시간대 가져옴

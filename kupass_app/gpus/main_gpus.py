@@ -77,7 +77,16 @@ class TextSummary:
 
     def get_article_summary(self, content):
         summary = self.textrank.summarize(content, 3, verbose=False)
-        summary = ''.join(summary)
+        for i in range(len(summary)):
+            summary[i] += '.';
+#            print(f'summary[{i}]: "{summary[i]}"')
+        summary = ' '.join(summary)
+#        print(f'before summary: "{summary}"')
+#        summary = summary.replace("'' ", "")
+#        print(f'\nbefore summary2: "{summary}"')
+#        summary = summary.replace("'' '", "").replace("' '", "")
+#        summary = summary[1:]
+#        print(f'\nafter summary: "{summary}"')
         return summary
 
     class OktTokenizer:
