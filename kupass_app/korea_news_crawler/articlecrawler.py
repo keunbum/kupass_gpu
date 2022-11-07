@@ -140,8 +140,102 @@ class ArticleCrawler(object):
                 return requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
             except requests.exceptions:
                 sleep(1)
-            remaining_tries = remaining_tries - 1
+            remaining_tries -= 1
         raise ResponseTimeout()
+
+    @staticmethod
+    def is_valanced_content(content):
+        return content.count("'") % 2 == 0
+
+    def refine_content(self, content):
+        content = content.replace("'' ", "").replace("' '", " ")
+        if not self.is_valanced_content(content):
+            return content[1:]
+        return content
+
+    def get_article_from_url(self, url_category, post_url, is_finished):
+        print_cur_state(f"'{url_category}':", end=' ')
+        print_cur_state(f'{post_url}')
+
+        # 기사 HTML 가져옴
+        request_content = self.get_url_data(post_url)
+
+        try:
+            document_content = BeautifulSoup(request_content.content, 'html.parser')
+        except Exception:
+            print_cur_state(f'document_content is None')
+            return None
+        try:
+            # 기사 제목 가져옴
+            tag_headline = document_content.find_all('h2', {'class': 'media_end_head_headline'})
+            # print_cur_state(f"tag_headline's type: {type(tag_headline)}, len: {len(tag_headline)}")
+            if len(tag_headline) < 1:
+                print_cur_state(f'len(tag_headline) = 0', end='\n')
+                return None
+            # 뉴스 기사 제목 초기화
+            title = ArticleParser.clear_headline(str(tag_headline[0].find_all(string=True)))
+            # 공백일 경우 기사 제외 처리
+            if not isinstance(title, str) or title is None:
+                print_cur_state(f'title is None', end='\n')
+                # print(tag_headline, add, type(add), sep=', ')
+                return None
+#            print_cur_state(f'title: "{title}"')
+            # <div class="go_trans _article_content" id="dic_area">
+
+            # 기사 본문 가져옴
+            tag_content = document_content.find_all('div', {'id': 'dic_area'})
+            if len(tag_content) < 1:
+                print_cur_state(f'len(tag_content) = 0', end='\n')
+                return None
+            # 뉴스 기사 본문 초기화
+            content = ArticleParser.clear_content(str(tag_content[0].find_all(string=True)))
+            # 공백일 경우 기사 제외 처리
+            if not isinstance(content, str) or content is None:
+                print_cur_state(f'content is None', end='\n')
+                #                        print(tag_content, add, type(add), sep=', ')
+                return None
+            content = self.refine_content(content)
+            if content == "":
+                print_cur_state(f'content == ""', end='\n')
+                return None
+#            print_cur_state(f'content: "{content}"\n')
+            # 기사 요약함
+            summary = text_summary.get_article_summary(content)
+#            print_cur_state(f'summary: "{summary}"')
+
+            # 기사 언론사 가져옴
+            tag_content = document_content.find_all('meta', {'property': 'og:article:author'})
+            # 언론사 초기화
+            publisher = tag_content[0]['content'].split("|")[0]
+            # 공백일 경우 기사 제외 처리
+            if not isinstance(publisher, str) or publisher is None:
+                print_cur_state(f'publisher is None', end='\n')
+                # print(tag_content[0]['content'], add, type(add), sep=', ')
+                return None
+            publisher = publisher.strip()
+            # print_cur_state(f'publisher: {publisher}')
+
+            # 기사 시간대 가져옴
+            create_date = document_content.find_all('span', {
+                'class': "media_end_head_info_datestamp_time _ARTICLE_DATE_TIME"})[0]['data-date-time']
+            print_cur_state(f'create_date: {create_date}')
+
+            if self.last_create_dates[url_category] >= datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"):
+#                print(self.last_create_dates[url_category], datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"), self.last_create_dates[url_category] >= datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"))
+                print_cur_state(f'last_article_datetime: {datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S")}', end='\n')
+                is_finished[0] = True
+                return None
+
+            # Article object insert
+            article_obj = Article(title=title, content=content, summary=summary, category=url_category,
+                                  publisher=publisher,
+                                  source=post_url, create_date=create_date)
+            return article_obj
+        # UnicodeEncodeError
+        except Exception as ex:
+            print_cur_state(f'ArticleCrawler.crawling():ex:[{ex}]')
+            assert False
+            return None
 
     def crawling(self, category):
         print_cur_state(f'last_create_date: {self.last_create_dates[category]}')
@@ -153,10 +247,11 @@ class ArticleCrawler(object):
         print_cur_state(f'{category} Urls are generated')
 
         print_cur_state(f'{category} is collecting ...')
-        finished = False
-        for url in target_urls:
-            #            print_cur_state(f'url = {url}')
-            request = self.get_url_data(url)
+        finished = [False]
+        inserted_articles_count = 0
+        for base_url in target_urls:
+            # print_cur_state(f'url = {url}')
+            request = self.get_url_data(base_url)
             document = BeautifulSoup(request.content, 'html.parser')
 
             # html - newsflash_body - type06_headline, type06
@@ -168,124 +263,54 @@ class ArticleCrawler(object):
             post_urls = []
             for line in temp_post:
                 # 해당되는 page에서 모든 기사들의 URL을 post_urls 리스트에 넣음
-                post_urls.append(line.a.get('href'))
+                temp_url = line.a.get('href')
+                same_url_cnt = Article.query.filter(Article.source == temp_url).count()
+                if same_url_cnt > 0:
+                    continue
+                post_urls.append(temp_url)
             del temp_post
 
             # for content_url in post_urls[:1]:  # 기사 url
             # print_cur_state(content_url)
             # print_cur_state(f'urls count = {len(post_urls)}')
-            for source in post_urls:
-                print_cur_state(f'content_url = {source}')
-                # 크롤링 대기 시간
-                # sleep(0.01)
-                # sleep(0.02)
 
-                # 기사 HTML 가져옴
-                request_content = self.get_url_data(source)
-
-                try:
-                    document_content = BeautifulSoup(request_content.content, 'html.parser')
-                except Exception:
-                    print_cur_state(f'document_content is None')
+            for url in post_urls:
+                article = self.get_article_from_url(category, url, finished)
+                if finished[0]:
+                    break
+                if article is None:
                     continue
-                try:
-                    # 기사 제목 가져옴
-                    tag_headline = document_content.find_all('h2', {'class': 'media_end_head_headline'})
-                    #                    print_cur_state(f"tag_headline's type: {type(tag_headline)}, len: {len(tag_headline)}")
-                    if len(tag_headline) < 1:
-                        continue
-                    # 뉴스 기사 제목 초기화
-                    title = ''
-                    add = ArticleParser.clear_headline(str(tag_headline[0].find_all(text=True)))
-                    # 공백일 경우 기사 제외 처리
-                    if not isinstance(add, str) or not add:
-                        # print_cur_state(f'title is None', end=' ')
-                        # print(tag_headline, add, type(add), sep=', ')
-                        continue
-                    title += add
-                    # <div class="go_trans _article_content" id="dic_area">
-
-                    # 기사 본문 가져옴
-                    tag_content = document_content.find_all('div', {'id': 'dic_area'})
-                    if len(tag_content) < 1:
-                        continue
-                    # 뉴스 기사 본문 초기화
-                    content = ''
-                    add = ArticleParser.clear_content(str(tag_content[0].find_all(text=True)))
-                    # 공백일 경우 기사 제외 처리
-                    if not isinstance(add, str) or not add:
-                        #                        print_cur_state(f'content is None', end=' ')
-                        #                        print(tag_content, add, type(add), sep=', ')
-                        continue
-                    content += add
-                    # 기사 요약함
-                    summary = text_summary.get_article_summary(content)
-
-                    # 기사 언론사 가져옴
-                    tag_content = document_content.find_all('meta', {'property': 'og:article:author'})
-                    # 언론사 초기화
-                    publisher = ''
-                    add = tag_content[0]['content'].split("|")[0]
-                    # 공백일 경우 기사 제외 처리
-                    if not isinstance(add, str) or not add:
-                        #                        print_cur_state(f'publisher is None', end=' ')
-                        #                        print(tag_content[0]['content'], add, type(add), sep=', ')
-                        continue
-                    publisher += add
-                    publisher = publisher.strip()
-                    #                    print_cur_state(f'publisher: {publisher}')
-
-                    # 기사 시간대 가져옴
-                    create_date = document_content.find_all('span', {
-                        'class': "media_end_head_info_datestamp_time _ARTICLE_DATE_TIME"})[0]['data-date-time']
-                    print_cur_state(f'create_date: {create_date}')
-                    current_time = datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S")
-                    #                    print_cur_state(f'last: {self.last_create_dates[category]} --> {self.last_create_dates[category]}')
-                    #                    print_cur_state(f'cur: {create_date} --> {cur_t}')
-
-                    #                    print(current_time, self.last_create_dates[category])
-                    #                    print(type(current_time), type(self.last_create_dates[category]))
-                    #                    assert isinstance(current_time, datetime) and isinstance(self.last_create_dates[category], datetime)
-
-                    if self.last_create_dates[category] >= current_time:
-                        finished = True
-                        break
-
-                    # CSV 작성
-                    # Article object insert
-                    article = Article(title=title, content=content, summary=summary, category=category,
-                                      publisher=publisher,
-                                      source=source, create_date=create_date)
-                    insert_one_article(article)
-
-                    del create_date
-                    del publisher, content, title
-                    del tag_content, tag_headline
-                    del request_content, document_content
-                    del add
-
-                # UnicodeEncodeError
-                except Exception as ex:
-                    print_cur_state('articlecrawler.crawling(): ', end='')
-                    print(ex)
-                    del request_content, document_content
-                    assert False
-                    pass
-            if finished:
+#                print_cur_state(f' has been inserted.')
+                insert_one_article(article)
+                inserted_articles_count += 1
+            if finished[0]:
                 break
         db.session.commit()
+        return inserted_articles_count
 
-    def start(self):
+    def start(self, start_day, end_day, categories):
+        #        def test(category, test_url):
+        #            self.set_last_create_date(category, get_last_create_date(category))
+        #            article = self.get_article_from_url(category, test_url, False)
+        #        test('정치', "https://n.news.naver.com/mnews/article/022/0003751270?sid=100")
+        #        return None
+        self.set_category(*categories)
+        self.set_date_range(start_day, end_day)
+
+        total_inserted_articles_count = 0
+
         # 크롤링 시작
         for category in self.selected_categories:
             print_cur_state(f'{category} has been started.')
             self.set_last_create_date(category, get_last_create_date(category))
-            self.crawling(category)
-            print_cur_state(f'{category} has been finished.')
+            inserted_articles_count = self.crawling(category)
+            print_cur_state(f'{category}: {inserted_articles_count} articles has been inserted.')
+            total_inserted_articles_count += inserted_articles_count
+
+        return total_inserted_articles_count
+
+crawler = ArticleCrawler()
 
 
 if __name__ == "__main__":
-    Crawler = ArticleCrawler()
-    Crawler.set_category('생활문화')
-    Crawler.set_date_range('2018-01', '2018-02')
-    Crawler.start()
+    None

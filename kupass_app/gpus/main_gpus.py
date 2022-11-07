@@ -1,7 +1,6 @@
 # coding: utf-8
 import sys
 import os
-import pandas as pd
 import time
 
 from kupass_app.models import Article, Keyword
@@ -16,7 +15,6 @@ from konlpy.tag import Okt
 from kupass_app import db
 from datetime import datetime
 
-# BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 start = time.time()
 
@@ -36,7 +34,7 @@ def eprint(*args, **kwargs):
 
 
 def print_cur_state(*args, **kwargs):
-    #    print(f'{get_cur_time():.3f} seconds:', *args, **kwargs)
+    # print(f'{get_cur_time():.3f} seconds:', *args, **kwargs)
     print(f'', *args, **kwargs)
 
 
@@ -49,26 +47,6 @@ def print_ith_result(qq, i, list_size, suffix=''):
         print_cur_state(f'{j * qq} ~ {j * qq + i % qq}' + suffix)
 
 
-def read_data_frames(start_day, end_day, file_dir,
-                     categories=['politics', 'economy', 'society', 'living_culture', 'world', 'IT_science', 'opinion']):
-    start_day = change_day_format(start_day)
-    end_day = change_day_format(end_day)
-    categories_kr = ['정치', '경제', '사회', '생활문화', '세계', 'IT과학', '오피니언']
-    column_names = ['time', 'category', 'company', 'title', 'content', 'link']
-    dfs = pd.DataFrame()
-    for category_kr in categories_kr:
-        file_name = f'Article_{category_kr}_{start_day}_{end_day}.csv'
-        file_full_name = f'{file_dir}\{file_name}'
-        print_cur_state(f'reads data frames from {file_name}')
-        df = pd.read_csv(file_full_name, names=column_names,
-                         encoding='CP949')
-        dfs = pd.concat([dfs, df], ignore_index=True)
-    return dfs
-
-
-ARTICLE_LIST_SIZE = 30
-
-
 class TextSummary:
     def __init__(self):
         self.tokenizer = self.OktTokenizer()
@@ -78,15 +56,8 @@ class TextSummary:
     def get_article_summary(self, content):
         summary = self.textrank.summarize(content, 3, verbose=False)
         for i in range(len(summary)):
-            summary[i] += '.';
-#            print(f'summary[{i}]: "{summary[i]}"')
+            summary[i] += '.'
         summary = ' '.join(summary)
-#        print(f'before summary: "{summary}"')
-#        summary = summary.replace("'' ", "")
-#        print(f'\nbefore summary2: "{summary}"')
-#        summary = summary.replace("'' '", "").replace("' '", "")
-#        summary = summary[1:]
-#        print(f'\nafter summary: "{summary}"')
         return summary
 
     class OktTokenizer:
@@ -95,9 +66,6 @@ class TextSummary:
         def __call__(self, text: str) -> List[str]:
             tokens: List[str] = self.okt.phrases(text)
             return tokens
-
-
-text_summary = TextSummary()
 
 
 class KeywordsProducer:
@@ -120,52 +88,35 @@ class KeywordsProducer:
         tokenized_nouns = ' '.join(
             [word[0] for word in tokenized_doc if
              word[1] == 'Noun' and not word[0] in self.stop_words and len(word[0]) > 1])
-
+        del tokenized_doc
         count = CountVectorizer(ngram_range=self.n_gram_range).fit([tokenized_nouns])
+        del tokenized_nouns
         candidates = count.get_feature_names_out()
-
+        del count
         doc_embedding = self.model.encode([content])
         candidate_embeddings = self.model.encode(candidates)
 
         distances = cosine_similarity(doc_embedding, candidate_embeddings)
+        del doc_embedding
         keywords = [candidates[index] for index in distances.argsort()[0][-self.top_n:]]
         return keywords
 
 
 def get_last_create_date(category):
     print_cur_state(f'category: {category}')
-    '''
-    en_to_kr = {
-        'politics' : '정치',
-        'economy' : '경제',
-        'society' : '사회',
-        'living_culture' : '생활문화',
-        'world' : '세계',
-        'IT_science' : 'IT과학',
-        'opinion' : '오피니언',
-    }
-    '''
-    # category = en_to_kr[category]
-    print_cur_state(f'category_kr: {category}')
-    last_create_date = datetime.now().replace(minute=0, second=0, microsecond=0)
-    #    assert isinstance(last_create_date, datetime)
-    #    print(f'before last_create_date = {last_create_date}')
+    last_create_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+#    last_create_date = datetime.now().replace(day=5, hour=21, minute=0, second=0, microsecond=0)
     try:
         sub_query = Article.query.filter(Article.category == category).order_by(Article.create_date.desc()).limit(1)
-        #        print_cur_state(f'sub_query = {sub_query}')
         if sub_query.count() > 0:
             last_create_date = sub_query[0].create_date
-        #            print_cur_state(f'last_create_date: {last_create_date}')
-        #            assert isinstance(last_create_date, datetime)
-        else:
-            print_cur_state('empty subquery')
     except Exception as e:
         print_cur_state('main_gpus.get_last_create_date(): ', end='')
         print(e)
-    #    print(f'after last_create_date = {last_create_date}')
     return last_create_date
 
 
+text_summary = TextSummary()
 keyword_producer = KeywordsProducer()
 
 

@@ -4,7 +4,7 @@ from flask_restful import Resource, Api
 from datetime import datetime
 
 from kupass_app.gpus.main_gpus import keyword_producer
-from kupass_app import crawler
+from kupass_app.korea_news_crawler import crawler
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 api = Api(bp)
@@ -78,11 +78,14 @@ class Crawler(Resource):
             return start_day, end_day, categories
 
         res = is_valid_request()
+        total_inserted_articles_count = 0
         if not res:
-            return {'message': "bad request"}, 400
+            return {'message': "bad request", 'total_inserted_articles_count': total_inserted_articles_count}, 400
         start_day, end_day, categories = res
-        crawler.start_crawl(start_day, end_day, categories)
-        return {'message': "success"}, 201
+        total_inserted_articles_count += crawler.start(start_day, end_day, categories)
+        if total_inserted_articles_count < 10:
+            return {'message': "wait", 'total_inserted_articles_count': total_inserted_articles_count}, 201
+        return {'message': "success", 'total_inserted_articles_count': total_inserted_articles_count}, 201
 
 
 api.add_resource(Summary, '/summary')

@@ -4,8 +4,8 @@ from bs4 import BeautifulSoup
 
 
 class ArticleParser(object):
-    special_symbol = re.compile('[\{\}\[\]\/?,;:|\)*~`!^\-_+<>@\#$&▲▶◆◀■【】\\\=\(\'\"]')
-#    special_symbol = re.compile('[\{\}\[\]\/?,;:|\)*~`!^\-_+<>@\#$&▲▶◆◀■【】\\\=\(]')
+#    special_symbol = re.compile('[\{\}\[\]\/?,;:|\)*~`!^\-_+<>@\#$&▲▶◆◀■【】\\\=\(\'\"]')
+    special_symbol = re.compile('[\{\}\/\\[\],=#$▲▶◆◀■【】\\\]')
     content_pattern = re.compile(
         '본문 내용|TV플레이어| 동영상 뉴스|flash 오류를 우회하기 위한 함수 추가function  flash removeCallback|tt|앵커 멘트|xa0')
 
