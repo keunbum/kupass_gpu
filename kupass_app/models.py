@@ -21,10 +21,10 @@ class Article(db.Model):
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(LONGTEXT, nullable=False)
     summary = db.Column(LONGTEXT, nullable=True)
-    category = db.Column(db.String(255), nullable=True)
-    publisher = db.Column(db.String(255), nullable=True)
+    category = db.Column(db.String(255), index=True, nullable=True)
+    publisher = db.Column(db.String(255), index=True, nullable=True)
     source = db.Column(db.String(255), index=True, unique=True, nullable=True)
-    create_date = db.Column(db.DateTime(6), nullable=False)
+    create_date = db.Column(db.DateTime(6), index=True, nullable=False)
     keyword = db.relationship('Keyword', secondary=article_keywords, backref=db.backref('article_keyword_set'))
 
 
