@@ -179,7 +179,7 @@ class ArticleCrawler(object):
                 print_cur_state(f'title is None', end='\n')
                 # print(tag_headline, add, type(add), sep=', ')
                 return None
-#            print_cur_state(f'title: "{title}"')
+            #            print_cur_state(f'title: "{title}"')
             # <div class="go_trans _article_content" id="dic_area">
 
             # 기사 본문 가져옴
@@ -198,10 +198,10 @@ class ArticleCrawler(object):
             if content == "":
                 print_cur_state(f'content == ""', end='\n')
                 return None
-#            print_cur_state(f'content: "{content}"\n')
+            #            print_cur_state(f'content: "{content}"\n')
             # 기사 요약함
             summary = text_summary.get_article_summary(content)
-#            print_cur_state(f'summary: "{summary}"')
+            #            print_cur_state(f'summary: "{summary}"')
 
             # 기사 언론사 가져옴
             tag_content = document_content.find_all('meta', {'property': 'og:article:author'})
@@ -221,8 +221,9 @@ class ArticleCrawler(object):
             print_cur_state(f'create_date: {create_date}')
 
             if self.last_create_dates[url_category] >= datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"):
-#                print(self.last_create_dates[url_category], datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"), self.last_create_dates[url_category] >= datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"))
-                print_cur_state(f'last_article_datetime: {datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S")}', end='\n')
+                # print(self.last_create_dates[url_category], datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"), self.last_create_dates[url_category] >= datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S"))
+                print_cur_state(f'last_article_datetime: {datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S")}',
+                                end='\n')
                 is_finished[0] = True
                 return None
 
@@ -235,7 +236,7 @@ class ArticleCrawler(object):
         except Exception as ex:
             print_cur_state(f'ArticleCrawler.crawling():ex:[{ex}]')
             assert False
-            return None
+            # return None
 
     def crawling(self, category):
         print_cur_state(f'last_create_date: {self.last_create_dates[category]}')
@@ -249,7 +250,9 @@ class ArticleCrawler(object):
         print_cur_state(f'{category} is collecting ...')
         finished = [False]
         inserted_articles_count = 0
+        page_count = 0
         for base_url in target_urls:
+            page_count += 1
             # print_cur_state(f'url = {url}')
             request = self.get_url_data(base_url)
             document = BeautifulSoup(request.content, 'html.parser')
@@ -274,15 +277,20 @@ class ArticleCrawler(object):
             # print_cur_state(content_url)
             # print_cur_state(f'urls count = {len(post_urls)}')
 
+            small_inserted_articles_count = 0
             for url in post_urls:
                 article = self.get_article_from_url(category, url, finished)
                 if finished[0]:
                     break
                 if article is None:
                     continue
-#                print_cur_state(f' has been inserted.')
+                #                print_cur_state(f' has been inserted.')
                 insert_one_article(article)
-                inserted_articles_count += 1
+                small_inserted_articles_count += 1
+            inserted_articles_count += small_inserted_articles_count
+#            db.session.commit()
+#            print_cur_state(
+#                f'{category}: in {page_count}th page {small_inserted_articles_count} articles has been inserted. (total: {inserted_articles_count})')
             if finished[0]:
                 break
         db.session.commit()
@@ -304,13 +312,13 @@ class ArticleCrawler(object):
             print_cur_state(f'{category} has been started.')
             self.set_last_create_date(category, get_last_create_date(category))
             inserted_articles_count = self.crawling(category)
-            print_cur_state(f'{category}: {inserted_articles_count} articles has been inserted.')
+            print_cur_state(f'{category}: total {inserted_articles_count} articles has been inserted.')
             total_inserted_articles_count += inserted_articles_count
 
         return total_inserted_articles_count
 
-crawler = ArticleCrawler()
 
+crawler = ArticleCrawler()
 
 if __name__ == "__main__":
     None

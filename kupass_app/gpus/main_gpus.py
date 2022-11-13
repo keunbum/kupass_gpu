@@ -77,12 +77,12 @@ class KeywordsProducer:
         self.stop_words = set(self.stop_words.split())
         self.okt = Okt()
         self.n_gram_range = (1, 1)
-        self.model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
+#        self.model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
+        self.model = SentenceTransformer('sentence-transformers/distiluse-base-multilingual-cased-v1')
         self.top_n = 5
         print_cur_state(f'KeywordsProducer() has been created.')
 
     def get_keywords(self, content):
-        assert isinstance(content, str)
         # create_date, category, publisher, title, content, source = [article[key] for key in article.keys()]
         tokenized_doc = self.okt.pos(content)
         tokenized_nouns = ' '.join(
@@ -121,7 +121,8 @@ keyword_producer = KeywordsProducer()
 
 
 def insert_one_article(article):
-    keywords = keyword_producer.get_keywords(article.content)
+    keywords = keyword_producer.get_keywords(article.title + " " +  article.content)
+#    print_cur_state(article.title, article.content, article.source, keywords)
     db.session.add(article)
     for keyword in keywords:
         _keyword = Keyword(keyword=keyword)

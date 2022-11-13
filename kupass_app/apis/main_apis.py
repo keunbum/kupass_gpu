@@ -63,7 +63,7 @@ class Crawler(Resource):
                 # now = '2022-10-01'
                 start_day = data.get('start_day', now)
                 end_day = data.get('end_day', now)
-                categories = data.get('categories', self.categories_kr)
+                categories = data.get('categories', self.categories_kr[::-1])
                 print(f'start_day ~ end_day: {start_day} ~ {end_day}')
                 print(f'categories: {categories}')
             except KeyError:
