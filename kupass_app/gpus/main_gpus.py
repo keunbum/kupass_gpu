@@ -20,6 +20,8 @@ start = time.time()
 
 os.environ['JAVA_HOME'] = r"C:\Users\woqkf\.jdks\openjdk-17.0.2\bin\server"
 
+commonOkt = Okt()
+
 
 def get_cur_time():
     return time.time() - start
@@ -61,7 +63,7 @@ class TextSummary:
         return summary
 
     class OktTokenizer:
-        okt: Okt = Okt()
+        okt: Okt = commonOkt
 
         def __call__(self, text: str) -> List[str]:
             tokens: List[str] = self.okt.phrases(text)
@@ -75,7 +77,7 @@ class KeywordsProducer:
                           "뉴스타파 주간동아 월간산 주간경향 시사저널 매경이코노미 주간조선 이코노미스트 한경비즈니스 비즈니스워치 이데일리 조세일보 헤럴드경제 아시아경제 매일경제 머니투데이 " \
                           "서울경제 서울비즈 파이낸셜뉴스 국제신문 강원일보 강원도민일보 부산일보 대전일보 매일신문 "
         self.stop_words = set(self.stop_words.split())
-        self.okt = Okt()
+        self.okt = commonOkt
         self.n_gram_range = (1, 1)
 #        self.model = SentenceTransformer('sentence-transformers/xlm-r-100langs-bert-base-nli-stsb-mean-tokens')
         self.model = SentenceTransformer('sentence-transformers/distiluse-base-multilingual-cased-v1')
@@ -86,8 +88,9 @@ class KeywordsProducer:
         # create_date, category, publisher, title, content, source = [article[key] for key in article.keys()]
         tokenized_doc = self.okt.pos(content)
         tokenized_nouns = ' '.join(
-            [word[0] for word in tokenized_doc if
-             word[1] == 'Noun' and not word[0] in self.stop_words and len(word[0]) > 1])
+            [word[0] for word in tokenized_doc
+             if word[1] == 'Noun' and not word[0] in self.stop_words and len(word[0]) > 1]
+        )
         del tokenized_doc
         count = CountVectorizer(ngram_range=self.n_gram_range).fit([tokenized_nouns])
         del tokenized_nouns
@@ -103,9 +106,10 @@ class KeywordsProducer:
 
 
 def get_last_create_date(category):
-    print_cur_state(f'category: {category}')
+    # print_cur_state(f'category: {category}')
     last_create_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 #    last_create_date = datetime.now().replace(day=5, hour=21, minute=0, second=0, microsecond=0)
+#    print_cur_state(f"set last_create_date to today's start: {last_create_date}")
     try:
         sub_query = Article.query.filter(Article.category == category).order_by(Article.create_date.desc()).limit(1)
         if sub_query.count() > 0:

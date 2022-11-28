@@ -239,7 +239,7 @@ class ArticleCrawler(object):
             # return None
 
     def crawling(self, category):
-        print_cur_state(f'last_create_date: {self.last_create_dates[category]}')
+        print_cur_state(f'{category} last_create_date: {self.last_create_dates[category]}')
 
         # 기사 url 형식
         url_format = f'https://news.naver.com/main/list.nhn?mode=LSD&mid=sec&sid1={self.categories.get(category)}&date='
@@ -288,9 +288,7 @@ class ArticleCrawler(object):
                 insert_one_article(article)
                 small_inserted_articles_count += 1
             inserted_articles_count += small_inserted_articles_count
-#            db.session.commit()
-#            print_cur_state(
-#                f'{category}: in {page_count}th page {small_inserted_articles_count} articles has been inserted. (total: {inserted_articles_count})')
+            print_cur_state(f'{category}: in {page_count}th page {small_inserted_articles_count} articles have been inserted. (total: {inserted_articles_count})')
             if finished[0]:
                 break
         db.session.commit()
@@ -311,8 +309,9 @@ class ArticleCrawler(object):
         for category in self.selected_categories:
             print_cur_state(f'{category} has been started.')
             self.set_last_create_date(category, get_last_create_date(category))
+            # self.set_last_create_date(category, datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
             inserted_articles_count = self.crawling(category)
-            print_cur_state(f'{category}: total {inserted_articles_count} articles has been inserted.')
+            print_cur_state(f'{category}: total {inserted_articles_count} articles have been inserted.')
             total_inserted_articles_count += inserted_articles_count
 
         return total_inserted_articles_count
